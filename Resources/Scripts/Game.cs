@@ -40,6 +40,8 @@ public sealed class Game : MonoBehaviour
     private const float distanceBetweenCells = 0.438f;          //Растояние между клетками, необходимое для расстановки фишек на поле.
     private const uint MaxHorizontal = 8, MaxVertical = 8;      //Размерность поля по вертикали и горизонтали.
     private GameObject[,] fieldObjects;                         //Поле с фишками.
+    private float startTime;
+    private float dt = 5.0f;
 
     public List<GameObject> food;           //Пул фишек для их генерации на поле.
 
@@ -57,6 +59,8 @@ public sealed class Game : MonoBehaviour
                 fieldObjects[i, j] = Instantiate(food[Random.Range(1, 6) - 1], new Vector3(positionOfFirstCell.x + distanceBetweenCells * j, positionOfFirstCell.y - distanceBetweenCells * i, z0), Quaternion.identity);
             }
         }
+
+        startTime = Time.time + dt;
     }
 
     //Основное взаимодействие пользователя с игрой в FixedUpdate().
@@ -90,65 +94,68 @@ public sealed class Game : MonoBehaviour
         }
         else
         {
-            /*
-             * Изначально проверяем совпадения. Если совпадения не были найдены и был ход, то переставляем выбранные ячейки
-             * для обмена обратно на свои места. Проверка поля будет происходит в любом случае, даже если не было хода,
-             * так как в начале логического выражения стоит функция checkMatchAll().
-             */
-
-            if (!checkAllMatch() && wasTurn)
+            if (Time.time > startTime)
             {
-                isMovable = true;
-                wasTurn = false;
+                /*
+                 * Изначально проверяем совпадения. Если совпадения не были найдены и был ход, то переставляем выбранные ячейки
+                 * для обмена обратно на свои места. Проверка поля будет происходит в любом случае, даже если не было хода,
+                 * так как в начале логического выражения стоит функция checkMatchAll().
+                 */
 
-                Point temp = p0;
-                p0 = target;
-                target = temp;
-
-                swap(ref p0, ref target);
-
-                return;
-            }
-
-            //Читаем данные от пользователя.
-            if (Input.GetKeyDown(KeyCode.Mouse0))
-            {
-                //Проверяем, какой объект на поле пользователь задел.
-                RaycastHit2D hit = Physics2D.Raycast(Camera.main.ScreenToWorldPoint(Input.mousePosition), Vector2.zero);
-
-                if (hit && hit.collider.tag == "Cake")
+                if (!checkAllMatch() && wasTurn)
                 {
-                    //Получаем информацию о расположении фишки в массиве, через координаты объекта на сцене.
-                    int i = System.Convert.ToInt32(Mathf.Abs(hit.collider.transform.position.y - transform.GetChild(0).transform.position.y) / distanceBetweenCells);
-                    int j = System.Convert.ToInt32(Mathf.Abs(hit.collider.transform.position.x - transform.GetChild(0).transform.position.x) / distanceBetweenCells);
+                    isMovable = true;
+                    wasTurn = false;
 
-                    //Если ни одна фишка не выбрана, то выделяем ту, которую выбрали.
-                    if (!Selector)
+                    Point temp = p0;
+                    p0 = target;
+                    target = temp;
+
+                    swap(ref p0, ref target);
+
+                    return;
+                }
+
+                //Читаем данные от пользователя.
+                if (Input.GetKeyDown(KeyCode.Mouse0))
+                {
+                    //Проверяем, какой объект на поле пользователь задел.
+                    RaycastHit2D hit = Physics2D.Raycast(Camera.main.ScreenToWorldPoint(Input.mousePosition), Vector2.zero);
+
+                    if (hit && hit.collider.tag == "Cake")
                     {
-                        Selector = Instantiate(Resources.Load<GameObject>("Prefabs/selector"), hit.collider.transform.position, Quaternion.identity);
+                        //Получаем информацию о расположении фишки в массиве, через координаты объекта на сцене.
+                        int i = System.Convert.ToInt32(Mathf.Abs(hit.collider.transform.position.y - transform.GetChild(0).transform.position.y) / distanceBetweenCells);
+                        int j = System.Convert.ToInt32(Mathf.Abs(hit.collider.transform.position.x - transform.GetChild(0).transform.position.x) / distanceBetweenCells);
 
-                        p0 = new Point(j, i);
-                        firstCake = fieldObjects[i, j];
-                    }
-                    else
-                    {
-                        target = new Point(j, i);
-                        secondCake = fieldObjects[i, j];
-
-                        //Если фишка была выбрана, то проверяем на допустимость их перемещения и уничтожаем селектор.
-                        if (AssetTouch(ref p0, ref target))
+                        //Если ни одна фишка не выбрана, то выделяем ту, которую выбрали.
+                        if (!Selector)
                         {
-                            swap(ref p0, ref target);
+                            Selector = Instantiate(Resources.Load<GameObject>("Prefabs/selector"), hit.collider.transform.position, Quaternion.identity);
 
-                            isMovable = true;
-                            wasTurn = true;
+                            p0 = new Point(j, i);
+                            firstCake = fieldObjects[i, j];
                         }
+                        else
+                        {
+                            target = new Point(j, i);
+                            secondCake = fieldObjects[i, j];
 
-                        Destroy(Selector);
+                            //Если фишка была выбрана, то проверяем на допустимость их перемещения и уничтожаем селектор.
+                            if (AssetTouch(ref p0, ref target))
+                            {
+                                swap(ref p0, ref target);
+
+                                isMovable = true;
+                                wasTurn = true;
+                            }
+
+                            Destroy(Selector);
+                        }
                     }
                 }
             }
-         }
+        }
     }
 
     //Простая функция обмена значений местами.
@@ -162,9 +169,25 @@ public sealed class Game : MonoBehaviour
     //Функция проверки совпадений.
     private bool checkAllMatch()
     {
-        bool resAngle = checkMatch(SearchOfMatch.angle);                //Проверяем пять фишек углом.
-        bool resHorizontal = checkMatch(SearchOfMatch.horizontal);      //Проверяем фишки горизонтально.
-        bool resVertical = checkMatch(SearchOfMatch.vertical);          //Проверяем фишки вертикально.
+        List<GameObject> deletingCakes = new List<GameObject>();
+        bool resAngle = false;//checkMatch(SearchOfMatch.angle, ref deletingCakes);                //Проверяем пять фишек углом
+
+        //Удаление
+
+        bool resHorizontal = checkMatch(SearchOfMatch.horizontal, ref deletingCakes);      //Проверяем фишки горизонтально.
+
+        if (deletingCakes.Count > 0)
+        {
+            for (int i = 0; i < deletingCakes.Count; i++)
+            {
+                Destroy(deletingCakes[i]);
+            }
+        }
+        deletingCakes.Clear();
+
+        bool resVertical = false;//checkMatch(SearchOfMatch.vertical, ref deletingCakes);          //Проверяем фишки вертикально.
+
+        //Удаление
 
         //Если хотя бы одно совпадение есть, то возвращаем истину.
         if (resAngle || resHorizontal || resVertical)
@@ -174,13 +197,8 @@ public sealed class Game : MonoBehaviour
         return false;
     }
 
-    private bool checkMatch(SearchOfMatch method)
+    private bool checkMatch(SearchOfMatch method, ref List<GameObject> deletingCakes)
     {
-        /*
-         * !!!На заметку!!!
-         * Объединить проверку угла с множеством if - ов в одну функцию.
-         */
-
         bool isMatch = false;       //Было ли хотя бы одно совпадение
 
         switch (method)
@@ -199,7 +217,7 @@ public sealed class Game : MonoBehaviour
                             if (matchCount > 2)
                             {
                                 isMatch = true;
-                                Result(i, j, matchCount, "горизонтали");
+                                Result(i, j, matchCount, ref deletingCakes, "горизонтали");
                             }
 
                             matchCount = 1;
@@ -213,7 +231,7 @@ public sealed class Game : MonoBehaviour
                     if (matchCount > 2)
                     {
                         isMatch = true;
-                        Result(i, System.Convert.ToInt32(MaxHorizontal - 1), matchCount, "горизонтали");
+                        Result(i, System.Convert.ToInt32(MaxHorizontal - 1), matchCount, ref deletingCakes, "горизонтали");
                     }
                 }
 
@@ -233,7 +251,7 @@ public sealed class Game : MonoBehaviour
                             if (matchCount > 2)
                             {
                                 isMatch = true;
-                                Result(j, i, matchCount, "вертикали");
+                                Result(j, i, matchCount, ref deletingCakes, "вертикали");
                             }
 
                             matchCount = 1;
@@ -247,7 +265,7 @@ public sealed class Game : MonoBehaviour
                     if (matchCount > 2)
                     {
                         isMatch = true;
-                        Result(j, System.Convert.ToInt32(MaxVertical - 1), matchCount, "вертикали");
+                        Result(j, System.Convert.ToInt32(MaxVertical - 1), matchCount, ref deletingCakes,"вертикали");
                     }
                 }
 
@@ -443,8 +461,17 @@ public sealed class Game : MonoBehaviour
     }
 
     //Функция, выводящая результат вертикального или горизонтального совпадения.
-    private void Result(int i, int j, int count, string str)
+    private void Result(int i, int j, int count, ref List<GameObject> deletingCakes, string str)
     {
+        if (count > 2)
+        {
+            deletingCakes.Add(fieldObjects[i, j]);
+            deletingCakes.Add(fieldObjects[i, j - 1]);
+            deletingCakes.Add(fieldObjects[i, j - 2]);
+        }
+        if (count > 3) deletingCakes.Add(fieldObjects[i, j - 3]);
+        if (count > 4) deletingCakes.Add(fieldObjects[i, j - 4]);
+
         switch (count)
         {
             case 3:
@@ -455,6 +482,7 @@ public sealed class Game : MonoBehaviour
             case 4:
                 Debug.Log("Совпадение из 4 фишек по " + str + " в " + i + " строке!");
                 Debug.Log("j4 =" + j + ", j3 = " + (j - 1) + ", j2 = " + (j - 2) + ", j1 = " + (j - 3));
+
                 break;
             case 5:
                 Debug.Log("Совпадение из 5 фишек по " + str + " в " + i + " строке!");
