@@ -29,7 +29,6 @@ public sealed class Point
 
 public sealed class Game : MonoBehaviour
 {
-    [SerializeField] [Range(0, 1)] private float speed;     //Скорость, с которой перемещаются фишки при обмене.
     private GameObject Selector;                            //Префаб селектора, чтобы пользователь видел, какую фишку он выбрал.
     private float z0 = -0.01f;                              //Нулевая координата z для фишек, чтобы они не сливались с фоном.
     private Point p0, target;                               //p0 - точка фишки, которую выбрали первой, target - точка фишки, которую выбрали для обмена с первой.
@@ -45,7 +44,7 @@ public sealed class Game : MonoBehaviour
     private Vector3 positionOfFirstCell;
 
     private float startTime;
-    private float dt = 9.0f;
+    private float dt = 10.0f;
 
     public List<GameObject> food;           //Пул фишек для их генерации на поле.
 
@@ -60,7 +59,7 @@ public sealed class Game : MonoBehaviour
         {
             for (int j = 0; j < MaxVertical; j++)
             {
-                fieldObjects[i, j] = Instantiate(food[Random.Range(0, food.Count)], new Vector3(positionOfFirstCell.x + distanceBetweenCells * j, positionOfFirstCell.y - distanceBetweenCells * i, z0), Quaternion.identity);
+                fieldObjects[i, j] = Instantiate(food[Random.Range(0, food.Count)], new Vector3(positionOfFirstCell.x + j * distanceBetweenCells, positionOfFirstCell.y + distanceBetweenCells, z0), Quaternion.identity);
                 fieldObjects[i, j].GetComponent<Cake>().SetTarget = new Point(j, i);
             }
         }
@@ -151,10 +150,10 @@ public sealed class Game : MonoBehaviour
                 }
 
                 //Читаем данные от пользователя.
-                if (Input.GetKeyDown(KeyCode.Mouse0))
+                if (Input.touchCount > 0)
                 {
                     //Проверяем, какой объект на поле пользователь задел.
-                    RaycastHit2D hit = Physics2D.Raycast(Camera.main.ScreenToWorldPoint(Input.mousePosition), Vector2.zero);
+                    RaycastHit2D hit = Physics2D.Raycast(Camera.main.ScreenToWorldPoint(Input.GetTouch(0).position), Vector3.zero);
 
                     if (hit && hit.collider.tag == "Cake")
                     {
@@ -240,57 +239,39 @@ public sealed class Game : MonoBehaviour
         fieldObjects[d1.GetY, d1.GetX] = temp;
     }
 
+    private bool DeleteCakes(ref List<GameObject> list)
+    {
+        if (list.Count > 0)
+        {
+            for (int i = 0; i < list.Count; i++)
+            {
+                Destroy(list[i]);
+            }
+
+            list.Clear();
+            StartCoroutine(DownPieces());
+
+            return true;
+        }
+        else 
+        {
+            return false;
+        }
+    }
+
     //Функция проверки совпадений.
     private bool checkAllMatch()
     {
-        List<GameObject> angleCakes = new List<GameObject>();
-        List<GameObject> horizontalCakes = new List<GameObject>();
-        List<GameObject> verticalCakes = new List<GameObject>();
-        
-        bool resAngle = checkMatch(SearchOfMatch.angle, ref angleCakes);                //Проверяем пять фишек углом
+        List<GameObject> deletingCakes = new List<GameObject>();
 
-        if (angleCakes.Count > 0)
-        {
-            for (int i = 0; i < angleCakes.Count; i++)
-            {
-                Destroy(angleCakes[i]);
-            }
+        bool resAngle = checkMatch(SearchOfMatch.angle, ref deletingCakes);                //Проверяем пять фишек углом
+        if (DeleteCakes(ref deletingCakes)) return true;
 
-            angleCakes.Clear();
-            StartCoroutine(DownPieces());
+        bool resHorizontal = checkMatch(SearchOfMatch.horizontal, ref deletingCakes);      //Проверяем фишки горизонтально.
+        if (DeleteCakes(ref deletingCakes)) return true;
 
-            return true;
-        }
-
-        bool resHorizontal = checkMatch(SearchOfMatch.horizontal, ref horizontalCakes);      //Проверяем фишки горизонтально.
-
-        if (horizontalCakes.Count > 0)
-        {
-            for (int i = 0; i < horizontalCakes.Count; i++)
-            {
-                Destroy(horizontalCakes[i]);
-            }
-
-            horizontalCakes.Clear();
-            StartCoroutine(DownPieces());
-
-            return true;
-        }
-
-        bool resVertical = checkMatch(SearchOfMatch.vertical, ref verticalCakes);          //Проверяем фишки вертикально.
-
-        if (verticalCakes.Count > 0)
-        {
-            for (int i = 0; i < verticalCakes.Count; i++)
-            {
-                Destroy(verticalCakes[i]);
-            }
-            
-            verticalCakes.Clear();
-            StartCoroutine(DownPieces());
-            
-            return true;
-        }
+        bool resVertical = checkMatch(SearchOfMatch.vertical, ref deletingCakes);          //Проверяем фишки вертикально.
+        if (DeleteCakes(ref deletingCakes)) return true;
 
         return false;
     }
