@@ -1,47 +1,44 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class Cake : MonoBehaviour
 {
-    /*[SerializeField][Range(0,1)] private float speed;
+    private float speed = 0.17f;
+    private float distanceBetweenCells = 0.438f;
     private Point targetPoint;
-    private Vector3 firstCell;
-    bool isMovable = false;
+    private Vector2 firstCell;
+    private bool isMovable = false;
 
     void Start()
     {
-        firstCell = GameObject.FindGameObjectWithTag("Board").transform.GetChild(0).position;
+        firstCell = GameObject.FindGameObjectWithTag("Board").transform.GetChild(0).transform.position;
     }
 
     void FixedUpdate()
     {
-        if(isMovable)
+        if (isMovable)
         {
-            float posX = targetPoint.GetX * 0.438f + firstCell.x;
-            float posY = targetPoint.GetY * 0.438f + firstCell.y;
+            float posX = firstCell.x + distanceBetweenCells * targetPoint.GetX;
+            float posY = firstCell.y - distanceBetweenCells * targetPoint.GetY;
 
-            Vector3 position = new Vector3(posX, posY, -0.01f);
+            transform.position = Vector3.Lerp(transform.position, new Vector3(posX, posY, -0.01f), speed);
 
-            if (transform.position == position)
+            if (transform.position == new Vector3(posX, posY, -0.01f))
             {
                 isMovable = false;
-            }
-            else
-            {
-                transform.position = Vector3.Lerp(transform.position, position, speed);
             }
         }
     }
 
     public Point SetTarget 
     { 
-        set
-        {
-            value.SetY = -value.GetY;
-
+        set 
+        { 
             targetPoint = value;
-            this.isMovable = true;
+            isMovable = true;
         } 
-    }*/
+    }
+    public int GetX { get { return targetPoint.GetX; } }
+    public int GetY { get { return targetPoint.GetY; } }
 }
