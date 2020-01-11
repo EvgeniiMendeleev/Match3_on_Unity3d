@@ -40,11 +40,16 @@ public sealed class Game : MonoBehaviour
     private const float distanceBetweenCells = 0.438f;          //Растояние между клетками, необходимое для расстановки фишек на поле.
     private const uint MaxHorizontal = 8, MaxVertical = 8;      //Размерность поля по вертикали и горизонтали.
     private GameObject[,] fieldObjects;                         //Поле с фишками.
-    [SerializeField] private bool isDown = true;
-    private Vector3 positionOfFirstCell;
+    private Vector3 positionOfFirstCell;                        //Позиция первой ячейки для расстановки фишек.
+    [SerializeField] private bool isDown = true;                //Переменная, которая переключает на проверку: Все ли фишки после совпадения находятся на своих местах или нет.
+    [SerializeField] private TextMesh scoreText;
+    private ushort score = 0;
+
+    [SerializeField] private AudioClip matchSound;
+    [SerializeField] private GameObject matchEffect;
 
     private float startTime;
-    private float dt = 10.0f;
+    private float dt = 5.0f;
 
     public List<GameObject> food;           //Пул фишек для их генерации на поле.
 
@@ -146,7 +151,10 @@ public sealed class Game : MonoBehaviour
                 }
                 else
                 {
+                    scoreText.text = System.Convert.ToString(score);
                     wasTurn = false;
+
+                    return;
                 }
 
                 //Читаем данные от пользователя.
@@ -169,7 +177,7 @@ public sealed class Game : MonoBehaviour
                             p0 = new Point(j, i);
                             firstCake = fieldObjects[i, j];
                         }
-                        else
+                        else 
                         {
                             target = new Point(j, i);
                             secondCake = fieldObjects[i, j];
@@ -186,7 +194,7 @@ public sealed class Game : MonoBehaviour
                                 wasTurn = true;
                             }
 
-                            Destroy(Selector);
+                            if (p0.GetX != target.GetX || p0.GetY != target.GetY) Destroy(Selector);
                         }
                     }
                 }
@@ -245,8 +253,12 @@ public sealed class Game : MonoBehaviour
         {
             for (int i = 0; i < list.Count; i++)
             {
+                GameObject temp = Instantiate(matchEffect, new Vector3(list[i].transform.position.x, list[i].transform.position.y, -0.01f), matchEffect.transform.rotation);
                 Destroy(list[i]);
+                Destroy(temp, 1.0f);
             }
+
+            GetComponent<AudioSource>().PlayOneShot(matchSound);
 
             list.Clear();
             StartCoroutine(DownPieces());
@@ -293,18 +305,25 @@ public sealed class Game : MonoBehaviour
                     {
                         if (fieldObjects[i, j].name != fieldObjects[i, j + 1].name)
                         {
-                            if (matchCount > 2)
-                            {
                                 isMatch = true;
                                 if (matchCount > 2)
                                 {
                                     deletingCakes.Add(fieldObjects[i, j]);
                                     deletingCakes.Add(fieldObjects[i, j - 1]);
                                     deletingCakes.Add(fieldObjects[i, j - 2]);
+
+                                    score += 10;
                                 }
-                                if (matchCount > 3) deletingCakes.Add(fieldObjects[i, j - 3]);
-                                if (matchCount > 4) deletingCakes.Add(fieldObjects[i, j - 4]);
-                            }
+                                if (matchCount > 3) 
+                                {
+                                    deletingCakes.Add(fieldObjects[i, j - 3]);
+                                    score += 10;
+                                }
+                                if (matchCount > 4)
+                                { 
+                                    deletingCakes.Add(fieldObjects[i, j - 4]);
+                                    score += 15;
+                                }
 
                             matchCount = 1;
                             continue;
@@ -322,9 +341,19 @@ public sealed class Game : MonoBehaviour
                             deletingCakes.Add(fieldObjects[i, MaxHorizontal - 1]);
                             deletingCakes.Add(fieldObjects[i, MaxHorizontal - 2]);
                             deletingCakes.Add(fieldObjects[i, MaxHorizontal - 3]);
+
+                            score += 10;
                         }
-                        if (matchCount > 3) deletingCakes.Add(fieldObjects[i, MaxHorizontal - 4]);
-                        if (matchCount > 4) deletingCakes.Add(fieldObjects[i, MaxHorizontal - 5]);
+                        if (matchCount > 3) 
+                        {
+                            deletingCakes.Add(fieldObjects[i, MaxHorizontal - 4]);
+                            score += 10;
+                        }
+                        if (matchCount > 4) 
+                        {
+                            deletingCakes.Add(fieldObjects[i, MaxHorizontal - 5]);
+                            score += 15;
+                        }
                     }
                 }
 
@@ -349,9 +378,19 @@ public sealed class Game : MonoBehaviour
                                     deletingCakes.Add(fieldObjects[i, j]);
                                     deletingCakes.Add(fieldObjects[i - 1, j]);
                                     deletingCakes.Add(fieldObjects[i - 2, j]);
+
+                                    score += 10;
                                 }
-                                if (matchCount > 3) deletingCakes.Add(fieldObjects[i - 3, j]);
-                                if (matchCount > 4) deletingCakes.Add(fieldObjects[i - 4, j]);
+                                if (matchCount > 3)
+                                {
+                                    deletingCakes.Add(fieldObjects[i - 3, j]);
+                                    score += 10;
+                                }
+                                if (matchCount > 4)
+                                {
+                                    deletingCakes.Add(fieldObjects[i - 4, j]);
+                                    score += 15;
+                                }
                             }
 
                             matchCount = 1;
@@ -371,9 +410,19 @@ public sealed class Game : MonoBehaviour
                             deletingCakes.Add(fieldObjects[MaxVertical - 1, j]);
                             deletingCakes.Add(fieldObjects[MaxVertical - 2, j]);
                             deletingCakes.Add(fieldObjects[MaxVertical - 3, j]);
+
+                            score += 10;
                         }
-                        if (matchCount > 3) deletingCakes.Add(fieldObjects[MaxVertical - 4, j]);
-                        if (matchCount > 4) deletingCakes.Add(fieldObjects[MaxVertical - 5, j]);
+                        if (matchCount > 3) 
+                        {
+                            deletingCakes.Add(fieldObjects[MaxVertical - 4, j]);
+                            score += 10;
+                        }
+                        if (matchCount > 4)
+                        {
+                            deletingCakes.Add(fieldObjects[MaxVertical - 5, j]);
+                            score += 15;
+                        }
                     }
                 }
 
@@ -410,6 +459,8 @@ public sealed class Game : MonoBehaviour
                                 deletingCakes.Add(fieldObjects[i, j]);
                                 deletingCakes.Add(fieldObjects[i, j - 1]);
                                 deletingCakes.Add(fieldObjects[i, j - 2]);
+
+                                score += 35;
                                 
                                 Debug.Log("Угол четвёртой четверти!");
                             }
@@ -424,6 +475,8 @@ public sealed class Game : MonoBehaviour
                                 deletingCakes.Add(fieldObjects[i, j]);
                                 deletingCakes.Add(fieldObjects[i, j - 1]);
                                 deletingCakes.Add(fieldObjects[i, j - 2]);
+
+                                score += 35;
 
                                 Debug.Log("Угол третьей четверти!");
                             }
@@ -441,6 +494,8 @@ public sealed class Game : MonoBehaviour
                                     deletingCakes.Add(fieldObjects[i, j - 1]);
                                     deletingCakes.Add(fieldObjects[i, j - 2]);
 
+                                    score += 35;
+
                                     Debug.Log("Угол первой четверти!");
                                 }
                                 else if (fieldObjects[i - 1, j].name == fieldObjects[i, j].name && fieldObjects[i - 2, j].name == fieldObjects[i, j].name)
@@ -454,6 +509,8 @@ public sealed class Game : MonoBehaviour
                                     deletingCakes.Add(fieldObjects[i, j]);
                                     deletingCakes.Add(fieldObjects[i, j - 1]);
                                     deletingCakes.Add(fieldObjects[i, j - 2]);
+
+                                    score += 35;
 
                                     Debug.Log("Угол второй четверти");
                                 }
@@ -476,6 +533,8 @@ public sealed class Game : MonoBehaviour
                                     deletingCakes.Add(fieldObjects[i, j - 1]);
                                     deletingCakes.Add(fieldObjects[i, j - 2]);
 
+                                    score += 35;
+
                                     Debug.Log("Угол четвёртой четверти!");
                                 }
                                 else if (fieldObjects[i + 1, j].name == fieldObjects[i, j].name && fieldObjects[i + 2, j].name == fieldObjects[i, j].name)
@@ -487,6 +546,8 @@ public sealed class Game : MonoBehaviour
                                     deletingCakes.Add(fieldObjects[i, j]);
                                     deletingCakes.Add(fieldObjects[i, j - 1]);
                                     deletingCakes.Add(fieldObjects[i, j - 2]);
+
+                                    score += 35;
 
                                     Debug.Log("Угол третьей четверти!");
                                 }
@@ -502,6 +563,8 @@ public sealed class Game : MonoBehaviour
                                         deletingCakes.Add(fieldObjects[i, j - 1]);
                                         deletingCakes.Add(fieldObjects[i, j - 2]);
 
+                                        score += 35;
+
                                         Debug.Log("Угол первой четверти!");
                                     }
                                     else if (fieldObjects[i - 1, j].name == fieldObjects[i, j].name && fieldObjects[i - 2, j].name == fieldObjects[i, j].name)
@@ -513,6 +576,8 @@ public sealed class Game : MonoBehaviour
                                         deletingCakes.Add(fieldObjects[i, j]);
                                         deletingCakes.Add(fieldObjects[i, j - 1]);
                                         deletingCakes.Add(fieldObjects[i, j - 2]);
+
+                                        score += 35;
 
                                         Debug.Log("Угол второй четверти");
                                     }
@@ -545,6 +610,8 @@ public sealed class Game : MonoBehaviour
                             deletingCakes.Add(fieldObjects[i, MaxHorizontal - 2]);
                             deletingCakes.Add(fieldObjects[i, MaxHorizontal - 3]);
 
+                            score += 35;
+
                             Debug.Log("Угол четвёртой четверти!");
                         }
                         else if (fieldObjects[i + 1, MaxHorizontal - 1].name == fieldObjects[i, MaxHorizontal - 1].name && fieldObjects[i + 2, MaxHorizontal - 1].name == fieldObjects[i, MaxHorizontal - 1].name)
@@ -556,6 +623,8 @@ public sealed class Game : MonoBehaviour
                             deletingCakes.Add(fieldObjects[i, MaxHorizontal - 1]);
                             deletingCakes.Add(fieldObjects[i, MaxHorizontal - 2]);
                             deletingCakes.Add(fieldObjects[i, MaxHorizontal - 3]);
+
+                            score += 35;
 
                             Debug.Log("Угол третьей четверти!");
                         }
@@ -571,6 +640,8 @@ public sealed class Game : MonoBehaviour
                                 deletingCakes.Add(fieldObjects[i, MaxHorizontal - 2]);
                                 deletingCakes.Add(fieldObjects[i, MaxHorizontal - 3]);
 
+                                score += 35;
+
                                 Debug.Log("Угол первой четвертиЙ");
                             }
                             else if (fieldObjects[i - 1, MaxHorizontal - 1].name == fieldObjects[i, MaxHorizontal - 1].name && fieldObjects[i - 2, MaxHorizontal - 1].name == fieldObjects[i, MaxHorizontal - 1].name)
@@ -582,6 +653,8 @@ public sealed class Game : MonoBehaviour
                                 deletingCakes.Add(fieldObjects[i, MaxHorizontal - 1]);
                                 deletingCakes.Add(fieldObjects[i, MaxHorizontal - 2]);
                                 deletingCakes.Add(fieldObjects[i, MaxHorizontal - 3]);
+
+                                score += 35;
 
                                 Debug.Log("Угол второй четверти!");
                             }
@@ -617,6 +690,8 @@ public sealed class Game : MonoBehaviour
                                 deletingCakes.Add(fieldObjects[i, j - 1]);
                                 deletingCakes.Add(fieldObjects[i, j - 2]);
 
+                                score += 35;
+
                                 Debug.Log("Угол первой четверти!");
                             }
                             else if (fieldObjects[i - 1, j].name == fieldObjects[i, j].name && fieldObjects[i - 2, j].name == fieldObjects[i, j].name)
@@ -630,6 +705,8 @@ public sealed class Game : MonoBehaviour
                                 deletingCakes.Add(fieldObjects[i, j]);
                                 deletingCakes.Add(fieldObjects[i, j - 1]);
                                 deletingCakes.Add(fieldObjects[i, j - 2]);
+
+                                score += 35;
 
                                 Debug.Log("Угол второй четверти");
                             }
@@ -650,6 +727,8 @@ public sealed class Game : MonoBehaviour
                                     deletingCakes.Add(fieldObjects[i, j - 1]);
                                     deletingCakes.Add(fieldObjects[i, j - 2]);
 
+                                    score += 35;
+
                                     Debug.Log("Угол первой четверти!");
                                 }
                                 else if (fieldObjects[i - 1, j].name == fieldObjects[i, j].name && fieldObjects[i - 2, j].name == fieldObjects[i, j].name)
@@ -661,6 +740,8 @@ public sealed class Game : MonoBehaviour
                                     deletingCakes.Add(fieldObjects[i, j]);
                                     deletingCakes.Add(fieldObjects[i, j - 1]);
                                     deletingCakes.Add(fieldObjects[i, j - 2]);
+
+                                    score += 35;
 
                                     Debug.Log("Угол второй четверти");
                                 }
@@ -684,6 +765,8 @@ public sealed class Game : MonoBehaviour
                         deletingCakes.Add(fieldObjects[i, MaxHorizontal - 2]);
                         deletingCakes.Add(fieldObjects[i, MaxHorizontal - 3]);
 
+                        score += 35;
+
                         Debug.Log("Угол второй четверти");
                     }
                 }
@@ -692,37 +775,6 @@ public sealed class Game : MonoBehaviour
         }
 
         return isMatch;
-    }
-
-    //Функция, выводящая результат вертикального или горизонтального совпадения.
-    private void Result(int i, int j, int count, ref List<GameObject> deletingCakes, string str)
-    {
-        if (count > 2)
-        {
-            deletingCakes.Add(fieldObjects[i, j]);
-            deletingCakes.Add(fieldObjects[i, j - 1]);
-            deletingCakes.Add(fieldObjects[i, j - 2]);
-        }
-        if (count > 3) deletingCakes.Add(fieldObjects[i, j - 3]);
-        if (count > 4) deletingCakes.Add(fieldObjects[i, j - 4]);
-
-        switch (count)
-        {
-            case 3:
-                Debug.Log("Совпадение из 3 фишек по " + str + " в " + i + " строке!");
-                Debug.Log("j3 = " + j + ", j2 = " + (j - 1) + ", j1 = " + (j - 2));
-
-                break;
-            case 4:
-                Debug.Log("Совпадение из 4 фишек по " + str + " в " + i + " строке!");
-                Debug.Log("j4 =" + j + ", j3 = " + (j - 1) + ", j2 = " + (j - 2) + ", j1 = " + (j - 3));
-
-                break;
-            case 5:
-                Debug.Log("Совпадение из 5 фишек по " + str + " в " + i + " строке!");
-                Debug.Log("j5 = " + j + ", j4 =" + (j - 1) + ", j3 = " + (j - 2) + ", j2 = " + (j - 3) + ", j1 = " + (j - 4));
-                break;
-        }
     }
 
     //Функция проверки на допустимость перемещения клеток со своими координатами p0 и target.
