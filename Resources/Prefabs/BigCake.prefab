@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 1143613722083270008}
   - component: {fileID: 1143613722083270009}
   - component: {fileID: 1143613722083270010}
+  - component: {fileID: -3531578245337760507}
   m_Layer: 0
   m_Name: BigCake
   m_TagString: Cake
@@ -108,3 +109,16 @@ BoxCollider2D:
   serializedVersion: 2
   m_Size: {x: 1.0666667, y: 1.24}
   m_EdgeRadius: 0
+--- !u!114 &-3531578245337760507
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1143613722083270011}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe5b735d2b6b8be4b9a0709cda153ca8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  speed: 0.21

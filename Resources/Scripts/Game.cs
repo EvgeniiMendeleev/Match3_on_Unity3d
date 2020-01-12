@@ -1,5 +1,6 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections;
+using UnityEngine.SceneManagement;
 using UnityEngine;
 
 enum SearchOfMatch { horizontal, vertical, angle }      //Метод проверки совпадений.
@@ -34,19 +35,27 @@ public sealed class Game : MonoBehaviour
     private Point p0, target;                               //p0 - точка фишки, которую выбрали первой, target - точка фишки, которую выбрали для обмена с первой.
     
     private GameObject firstCake, secondCake;               //Префабы, необходимые для взаимодействия с фишками, которые выбрали.
-    [SerializeField] private bool isMovable = false;        //Переменная, которая отвечает за действия перемещения объектов.
-    [SerializeField] private bool wasTurn = false;          //Переменная, отвечающая за информацию о том: был ли сделан ход или нет.
+    private bool isMovable = false;                         //Переменная, которая отвечает за действия перемещения объектов.
+    private bool wasTurn = false;                           //Переменная, отвечающая за информацию о том: был ли сделан ход или нет.
 
     private const float distanceBetweenCells = 0.438f;          //Растояние между клетками, необходимое для расстановки фишек на поле.
     private const uint MaxHorizontal = 8, MaxVertical = 8;      //Размерность поля по вертикали и горизонтали.
     private GameObject[,] fieldObjects;                         //Поле с фишками.
     private Vector3 positionOfFirstCell;                        //Позиция первой ячейки для расстановки фишек.
-    [SerializeField] private bool isDown = true;                //Переменная, которая переключает на проверку: Все ли фишки после совпадения находятся на своих местах или нет.
+    private bool isDown = true;                                 //Переменная, которая переключает на проверку: Все ли фишки после совпадения находятся на своих местах или нет.
+    private bool isEnd = false;
+
     [SerializeField] private TextMesh scoreText;
     private ushort score = 0;
 
     [SerializeField] private AudioClip matchSound;
+    [SerializeField] private AudioClip endSound;
+    [SerializeField] private AudioClip choiceButton;
+    [SerializeField] private AudioSource backgroundMusic;
     [SerializeField] private GameObject matchEffect;
+    [SerializeField] private GameObject pauseMenu;
+    [SerializeField] private GameObject endGameMenu;
+    private bool isPause = false;
 
     private float startTime;
     private float dt = 5.0f;
@@ -75,126 +84,220 @@ public sealed class Game : MonoBehaviour
     //Основное взаимодействие пользователя с игрой в FixedUpdate().
     void FixedUpdate()
     {
-        if (isMovable)      //Если выполнилось условие, что фишки можно двигать, то меняем их местами.
+        if (isPause)
         {
-            //Находим координаты второй фишки на сцене для фишки, которую мы выбрали первой, чтобы переместить её на позицию второй фишки.
-            float posX = target.GetX * distanceBetweenCells + transform.GetChild(0).transform.position.x;
-            float posY = -target.GetY * distanceBetweenCells + transform.GetChild(0).transform.position.y;
+            GetComponent<AudioSource>().clip = choiceButton;
 
-            Vector3 secondPosition = new Vector3(posX, posY, z0);
+            Vector3 endPosition = new Vector3(0, 0.65f, -0.3f);
+            pauseMenu.transform.position = Vector3.Lerp(pauseMenu.transform.position, endPosition, 0.11f);
 
-            //Находим координаты первой фишки на сцене для второй фишки.
-            posX = p0.GetX * distanceBetweenCells + transform.GetChild(0).transform.position.x;
-            posY = -p0.GetY * distanceBetweenCells + transform.GetChild(0).transform.position.y;
-
-            Vector3 firstPosition = new Vector3(posX, posY, z0);
-
-            //Меняем их местами, пока фишки не встанут на свои места.
-            if (firstCake.transform.position == secondPosition && secondCake.transform.position == firstPosition)
+            if (pauseMenu.transform.position == endPosition)
             {
-                isMovable = false;
-            }
-        }
-        else if (!isDown)
-        {
-            int count = 0;
-
-            for (int i = 0; i < MaxVertical; i++)
-            {
-                for (int j = 0; j < MaxHorizontal; j++)
-                {
-                    float posX = fieldObjects[i, j].GetComponent<Cake>().GetX * distanceBetweenCells + transform.GetChild(0).transform.position.x;
-                    float posY = -fieldObjects[i, j].GetComponent<Cake>().GetY * distanceBetweenCells + transform.GetChild(0).transform.position.y;
-
-                    Vector3 newPos = new Vector3(posX, posY, z0);
-
-                    if (fieldObjects[i,j] && fieldObjects[i, j].transform.position == newPos)
-                    {
-                        ++count;
-                    }
-                }
-            }
-
-            if (count == (MaxHorizontal * MaxVertical))
-            {
-                isDown = true;
-            }
-        }
-        else
-        {
-            if (Time.time > startTime)
-            {
-                /*
-                 * Изначально проверяем совпадения. Если совпадения не были найдены и был ход, то переставляем выбранные ячейки
-                 * для обмена обратно на свои места. Проверка поля будет происходит в любом случае, даже если не было хода,
-                 * так как в начале логического выражения стоит функция checkAllMatch().
-                 */
-                Debug.Log("!!!Проверяю совпадения и принимаю данные от пользователя!!!");
-                if (!checkAllMatch())
-                {
-                    if (wasTurn)
-                    {
-                        isMovable = true;
-                        wasTurn = false;
-
-                        var temp = p0;
-                        p0 = target;
-                        target = temp;
-
-                        swap(ref p0, ref target);
-
-                        firstCake.GetComponent<Cake>().SetTarget = target;
-                        secondCake.GetComponent<Cake>().SetTarget = p0;
-
-                        return;
-                    }
-                }
-                else
-                {
-                    scoreText.text = System.Convert.ToString(score);
-                    wasTurn = false;
-
-                    return;
-                }
-
-                //Читаем данные от пользователя.
                 if (Input.touchCount > 0)
                 {
-                    //Проверяем, какой объект на поле пользователь задел.
                     RaycastHit2D hit = Physics2D.Raycast(Camera.main.ScreenToWorldPoint(Input.GetTouch(0).position), Vector3.zero);
-
-                    if (hit && hit.collider.tag == "Cake")
+                    if (hit)
                     {
-                        //Получаем информацию о расположении фишки в массиве, через координаты объекта на сцене.
-                        int i = System.Convert.ToInt32(Mathf.Abs(hit.collider.transform.position.y - transform.GetChild(0).transform.position.y) / distanceBetweenCells);
-                        int j = System.Convert.ToInt32(Mathf.Abs(hit.collider.transform.position.x - transform.GetChild(0).transform.position.x) / distanceBetweenCells);
-
-                        //Если ни одна фишка не выбрана, то выделяем ту, которую выбрали.
-                        if (!Selector)
+                        if (hit.collider.name == "Menu_Button")
                         {
-                            Selector = Instantiate(Resources.Load<GameObject>("Prefabs/selector"), hit.collider.transform.position, Quaternion.identity);
-
-                            p0 = new Point(j, i);
-                            firstCake = fieldObjects[i, j];
+                            GetComponent<AudioSource>().Play();
+                            SceneManager.LoadScene(1);
                         }
-                        else 
+                        else if (hit.collider.name == "Reload_Button")
                         {
-                            target = new Point(j, i);
-                            secondCake = fieldObjects[i, j];
+                            GetComponent<AudioSource>().Play();
+                            SceneManager.LoadScene(0);
+                        }
+                        else if (hit.collider.name == "Play_Button")
+                        {
+                            GetComponent<AudioSource>().Play();
+                            backgroundMusic.Play();
+                            isPause = false;
+                        }
+                    }
+                }
+            }
+        }
+        else if (!isEnd)
+        {
+            if (isMovable)      //Если выполнилось условие, что фишки можно двигать, то меняем их местами.
+            {
+                //Находим координаты второй фишки на сцене для фишки, которую мы выбрали первой, чтобы переместить её на позицию второй фишки.
+                float posX = target.GetX * distanceBetweenCells + transform.GetChild(0).transform.position.x;
+                float posY = -target.GetY * distanceBetweenCells + transform.GetChild(0).transform.position.y;
 
-                            //Если фишка была выбрана, то проверяем на допустимость их перемещения и уничтожаем селектор.
-                            if (AssetTouch(ref p0, ref target))
+                Vector3 secondPosition = new Vector3(posX, posY, z0);
+
+                //Находим координаты первой фишки на сцене для второй фишки.
+                posX = p0.GetX * distanceBetweenCells + transform.GetChild(0).transform.position.x;
+                posY = -p0.GetY * distanceBetweenCells + transform.GetChild(0).transform.position.y;
+
+                Vector3 firstPosition = new Vector3(posX, posY, z0);
+
+                //Меняем их местами, пока фишки не встанут на свои места.
+                if (firstCake.transform.position == secondPosition && secondCake.transform.position == firstPosition)
+                {
+                    isMovable = false;
+                }
+            }
+            else if (!isDown)
+            {
+                int count = 0;
+
+                for (int i = 0; i < MaxVertical; i++)
+                {
+                    for (int j = 0; j < MaxHorizontal; j++)
+                    {
+                        float posX = fieldObjects[i, j].GetComponent<Cake>().GetX * distanceBetweenCells + transform.GetChild(0).transform.position.x;
+                        float posY = -fieldObjects[i, j].GetComponent<Cake>().GetY * distanceBetweenCells + transform.GetChild(0).transform.position.y;
+
+                        Vector3 newPos = new Vector3(posX, posY, z0);
+
+                        if (fieldObjects[i, j] && fieldObjects[i, j].transform.position == newPos)
+                        {
+                            ++count;
+                        }
+                    }
+                }
+
+                if (count == (MaxHorizontal * MaxVertical))
+                {
+                    isDown = true;
+                }
+            }
+            else
+            {
+                Vector3 endPosition = new Vector3(-5.15f, 0.95f, -3f);
+                pauseMenu.transform.position = Vector3.Lerp(pauseMenu.transform.position, endPosition, 0.11f);
+
+                if (pauseMenu.transform.position == endPosition)
+                {
+                    if (Time.time > startTime)
+                    {
+                        /*
+                         * Изначально проверяем совпадения. Если совпадения не были найдены и был ход, то переставляем выбранные ячейки
+                         * для обмена обратно на свои места. Проверка поля будет происходит в любом случае, даже если не было хода,
+                         * так как в начале логического выражения стоит функция checkAllMatch().
+                         */
+                        Debug.Log("!!!Проверяю совпадения и принимаю данные от пользователя!!!");
+
+                        if (score >= 4000)
+                        {
+                            isEnd = true;
+                            backgroundMusic.clip = endSound;
+                            backgroundMusic.loop = false;
+                            backgroundMusic.Play();
+
+                            startTime = Time.time + 1.5f;
+
+                            return;
+                        }
+
+                        if (!checkAllMatch())
+                        {
+                            if (wasTurn)
                             {
+                                isMovable = true;
+                                wasTurn = false;
+
+                                var temp = p0;
+                                p0 = target;
+                                target = temp;
+
                                 swap(ref p0, ref target);
 
                                 firstCake.GetComponent<Cake>().SetTarget = target;
                                 secondCake.GetComponent<Cake>().SetTarget = p0;
 
-                                isMovable = true;
-                                wasTurn = true;
+                                return;
                             }
+                        }
+                        else
+                        {
+                            scoreText.text = System.Convert.ToString(score);
+                            wasTurn = false;
 
-                            if (p0.GetX != target.GetX || p0.GetY != target.GetY) Destroy(Selector);
+                            return;
+                        }
+
+                        //Читаем данные от пользователя.
+                        if (Input.touchCount > 0)
+                        {
+                            //Проверяем, какой объект на поле пользователь задел.
+                            RaycastHit2D hit = Physics2D.Raycast(Camera.main.ScreenToWorldPoint(Input.GetTouch(0).position), Vector3.zero);
+
+                            if (hit)
+                            {
+                                if (hit.collider.tag == "Cake")
+                                {
+                                    //Получаем информацию о расположении фишки в массиве, через координаты объекта на сцене.
+                                    int i = System.Convert.ToInt32(Mathf.Abs(hit.collider.transform.position.y - transform.GetChild(0).transform.position.y) / distanceBetweenCells);
+                                    int j = System.Convert.ToInt32(Mathf.Abs(hit.collider.transform.position.x - transform.GetChild(0).transform.position.x) / distanceBetweenCells);
+
+                                    //Если ни одна фишка не выбрана, то выделяем ту, которую выбрали.
+                                    if (!Selector)
+                                    {
+                                        Selector = Instantiate(Resources.Load<GameObject>("Prefabs/selector"), hit.collider.transform.position, Quaternion.identity);
+
+                                        p0 = new Point(j, i);
+                                        firstCake = fieldObjects[i, j];
+                                    }
+                                    else
+                                    {
+                                        target = new Point(j, i);
+                                        secondCake = fieldObjects[i, j];
+
+                                        //Если фишка была выбрана, то проверяем на допустимость их перемещения и уничтожаем селектор.
+                                        if (AssetTouch(ref p0, ref target))
+                                        {
+                                            swap(ref p0, ref target);
+
+                                            firstCake.GetComponent<Cake>().SetTarget = target;
+                                            secondCake.GetComponent<Cake>().SetTarget = p0;
+
+                                            isMovable = true;
+                                            wasTurn = true;
+                                        }
+
+                                        if (p0.GetX != target.GetX || p0.GetY != target.GetY) Destroy(Selector);
+                                    }
+                                }
+                                else if (hit.collider.name == "Pause_Button")
+                                {
+                                    isPause = true;
+                                    backgroundMusic.Stop();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            if (startTime < Time.time)
+            {
+                GetComponent<AudioSource>().clip = choiceButton;
+                Vector3 endPosition = new Vector3(0, 0.65f, -0.3f);
+                endGameMenu.transform.position = Vector3.Lerp(endGameMenu.transform.position, endPosition, 0.11f);
+
+                if (endGameMenu.transform.position == endPosition)
+                {
+                    if (Input.touchCount > 0)
+                    {
+                        RaycastHit2D hit = Physics2D.Raycast(Camera.main.ScreenToWorldPoint(Input.GetTouch(0).position), Vector3.zero);
+                        if (hit)
+                        {
+                            if (hit.collider.name == "Menu_Button")
+                            {
+                                GetComponent<AudioSource>().Play();
+                                SceneManager.LoadScene(1);
+                            }
+                            else if (hit.collider.name == "Reload_Button")
+                            {
+                                GetComponent<AudioSource>().Play();
+                                SceneManager.LoadScene(0);
+                            }
                         }
                     }
                 }
