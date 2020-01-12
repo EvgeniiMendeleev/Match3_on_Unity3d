@@ -101,12 +101,12 @@ public sealed class Game : MonoBehaviour
                         if (hit.collider.name == "Menu_Button")
                         {
                             GetComponent<AudioSource>().Play();
-                            SceneManager.LoadScene(1);
+                            SceneManager.LoadScene(0);
                         }
                         else if (hit.collider.name == "Reload_Button")
                         {
                             GetComponent<AudioSource>().Play();
-                            SceneManager.LoadScene(0);
+                            SceneManager.LoadScene(1);
                         }
                         else if (hit.collider.name == "Play_Button")
                         {
@@ -291,12 +291,12 @@ public sealed class Game : MonoBehaviour
                             if (hit.collider.name == "Menu_Button")
                             {
                                 GetComponent<AudioSource>().Play();
-                                SceneManager.LoadScene(1);
+                                SceneManager.LoadScene(0);
                             }
                             else if (hit.collider.name == "Reload_Button")
                             {
                                 GetComponent<AudioSource>().Play();
-                                SceneManager.LoadScene(0);
+                                SceneManager.LoadScene(1);
                             }
                         }
                     }

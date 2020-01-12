@@ -16,7 +16,7 @@ public class MainMenuOfGame : MonoBehaviour
                 if (hit.collider.name == "Play_Main_Menu")
                 {
                     hit.collider.GetComponent<AudioSource>().Play();
-                    SceneManager.LoadScene(0);
+                    SceneManager.LoadScene(1);
                 }
             }
         }
